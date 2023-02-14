@@ -1,25 +1,21 @@
 import argparse
-import datetime
-import random
-import time
-from pathlib import Path
-
-import torch
-import torchvision.transforms as standard_transforms
-import numpy as np
-
 from PIL import Image
-import cv2
-from crowd_datasets import build_dataset
+from torchvision import models
 from engine import *
 from models import build_model
 import os
 import warnings
+
 warnings.filterwarnings('ignore')
+
+# modified: vgg_.py
+# model_path: /Users/francis/.cache/torch/hub/checkpoints/vgg16_bn-6c64b313.pth
+vgg16 = models.vgg16_bn(pretrained=True)
+
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Set parameters for P2PNet evaluation', add_help=False)
-    
+
     # * Backbone
     parser.add_argument('--backbone', default='vgg16_bn', type=str,
                         help="name of the convolutional backbone to use")
@@ -38,25 +34,25 @@ def get_args_parser():
 
     return parser
 
-def main(args, debug=False):
 
+def main(args, debug=False):
     os.environ["CUDA_VISIBLE_DEVICES"] = '{}'.format(args.gpu_id)
 
     print(args)
-    device = torch.device('cuda')
+    device = torch.device('cpu')  # 'cuda'
     # get the P2PNet
     model = build_model(args)
     # move to GPU
     model.to(device)
     # load trained model
     if args.weight_path is not None:
-        checkpoint = torch.load(args.weight_path, map_location='cpu')
+        checkpoint = torch.load('./weights/SHTechA.pth', map_location='cpu')  # args.weight_path
         model.load_state_dict(checkpoint['model'])
     # convert to eval mode
     model.eval()
     # create the pre-processing transform
     transform = standard_transforms.Compose([
-        standard_transforms.ToTensor(), 
+        standard_transforms.ToTensor(),
         standard_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
@@ -94,7 +90,8 @@ def main(args, debug=False):
     for p in points:
         img_to_draw = cv2.circle(img_to_draw, (int(p[0]), int(p[1])), size, (0, 0, 255), -1)
     # save the visualized image
-    cv2.imwrite(os.path.join(args.output_dir, 'pred{}.jpg'.format(predict_cnt)), img_to_draw)
+    cv2.imwrite(os.path.join('./logs/', 'pred{}.jpg'.format(predict_cnt)), img_to_draw)  # args.output_dir
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('P2PNet evaluation script', parents=[get_args_parser()])
